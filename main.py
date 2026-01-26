@@ -13,7 +13,14 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    
+    updatable = pygame.sprite.Group()
+    drawable = pygame.sprite.Group()
+
+    Player.containers = (updatable, drawable)
+
     ship = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
+    
     
     while 1 == 1:
         log_state()
@@ -23,8 +30,9 @@ def main():
                 return
         
         screen.fill("black")
-        ship.update(dt)
-        ship.draw(screen)
+        updatable.update(dt)
+        for draw in drawable:
+            draw.draw(screen)
         pygame.display.flip()
         clock.tick(60)
         dt = clock.tick(60) / 1000
