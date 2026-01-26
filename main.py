@@ -23,6 +23,7 @@ def main():
                 return
         
         screen.fill("black")
+        ship.update(dt)
         ship.draw(screen)
         pygame.display.flip()
         clock.tick(60)
