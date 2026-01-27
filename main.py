@@ -1,5 +1,4 @@
 import pygame
-import sys
 import random
 from constants import *
 from logger import log_state, log_event
@@ -8,11 +7,10 @@ from asteroid import Asteroid
 from asteroidfield import AsteroidField
 from shot import Shot
 from explosions import Explosion
-
 import os
 
 
-
+# --- high score helpers ---
 def load_high_score():
     if not os.path.exists(HIGHSCORE_FILE):
         return 0
@@ -29,22 +27,134 @@ def save_high_score(score):
     except OSError:
         pass
 
+# --- game helpers ---
+def points_per_asteroid(asteroid):
+    r = asteroid.radius
+    if r >= 60:
+        return 50
+    elif r >= 40:
+        return 25
+    else:
+        return 10
+    
 
+def handle_events(game_over):
+    """Return (running, restart) based on input"""
+    restart = False
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            return False, restart
+        
+        if game_over:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    return False, restart
+                if event.key == pygame.K_r:
+                    restart = True
+    return True, restart
+    
+
+def update_game(state, dt):
+    # stars always move
+    for star in state.stars:
+        star[1] += star[2]
+
+        if star[1] > SCREEN_HEIGHT:
+            star[0] = random.randrange(0, SCREEN_WIDTH)
+            star[1] = 0
+        
+    if not state.game_over:
+        state.updatable.update(dt)
+
+        # player hit
+        for asteroid in state.asteroids:
+            if asteroid.collides_with(state.ship):
+                log_event("player_hit")
+                print("Game over!")
+                if state.score > state.high_score:
+                    state.high_score = state.score
+                    save_high_score(state.high_score)
+                state.game_over = True
+                break
+        
+        # shots vs asteroids (only if still alive)
+        if not state.game_over:
+            for asteroid in list(state.asteroids): # list() avoids modifying while iterating
+                for shot in list(state.shots):
+                    if shot.collides_with(asteroid):
+                        log_event("asteroid_shot")
+                        shot.kill()
+                        state.score += points_per_asteroid(asteroid)
+                        asteroid.split()
+                        break
+
+
+def draw_game(state):
+    screen = state.screen
+    font = state.font
+
+    screen.fill("black")
+
+    # stars background
+    for x, y, speed in state.stars:
+        size = speed
+        screen.fill("white", (x, y, size, size))
+
+    if not state.game_over:
+        # normal world
+        for draw in state.drawable:
+            draw.draw(screen)
+            
+        score_surf = font.render(f"Score: {state.score}", True, (255, 255, 255))
+        hs_surf    = font.render(f"High:  {state.high_score}", True, (255, 255, 255))
+        screen.blit(score_surf, (10,10))
+        screen.blit(hs_surf,    (10, 40))
+    else:
+        # game over screen
+        game_over_text = font.render("GAME OVER", True, (255, 0, 0))
+        info_text      = font.render("R: restart   Q: quit", True, (255, 255, 255))
+        score_text     = font.render(f"Score: {state.score}", True, (255, 255, 255))
+        hs_text        = font.render(f"High:  {state.high_score}", True, (255, 255, 255))
+
+        screen.blit(game_over_text, (SCREEN_WIDTH // 2 - game_over_text.get_width() // 2,
+                                     SCREEN_HEIGHT // 2 - 60))
+        screen.blit(score_text,     (SCREEN_WIDTH // 2 - score_text.get_width() // 2,
+                                     SCREEN_HEIGHT // 2 - 20))
+        screen.blit(hs_text,        (SCREEN_WIDTH // 2 - hs_text.get_width() // 2,
+                                     SCREEN_HEIGHT // 2 + 20))
+        screen.blit(info_text,      (SCREEN_WIDTH // 2 - info_text.get_width() // 2,
+                                     SCREEN_HEIGHT // 2 + 60))
+    pygame.display.flip()
+
+# --- hold all info for each run ---
+class GameState:
+    def __init__(self, screen, font, stars,
+                 updatable, drawable, asteroids, shots,
+                 ship, high_score):
+        self.screen = screen
+        self.font = font
+        self.stars = stars
+
+        self.updatable = updatable
+        self.drawable = drawable
+        self.asteroids = asteroids
+        self.shots = shots
+        self.ship = ship
+
+        self.score = 0
+        self.high_score = high_score
+        self.game_over = False
+
+# --- main entry point ---
 def main():
-    print(f"Starting Asteroids with pygame version: {pygame.version.ver}")
-    print(f"Screen width: {SCREEN_WIDTH}")
-    print(f"Screen height: {SCREEN_HEIGHT}")
     pygame.init()
     clock = pygame.time.Clock()
     dt = 0
 
     font = pygame.font.Font(None, 36)
-
-    score = 0
     high_score = load_high_score()
-
-    game_over = False
     
+    #stars
     stars = []
     for _ in range(NUM_STARS):
         x = random.randrange(0, SCREEN_WIDTH)
@@ -58,7 +168,7 @@ def main():
     drawable = pygame.sprite.Group()
     asteroids = pygame.sprite.Group()
     shots = pygame.sprite.Group()
-    explosions = pygame.sprite.Group()
+    #explosions = pygame.sprite.Group()
 
     Player.containers = (updatable, drawable)
     Asteroid.containers = (asteroids, updatable, drawable)
@@ -69,94 +179,33 @@ def main():
     field = AsteroidField()
     ship = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
 
+    state = GameState(
+        screen=screen,
+        font=font,
+        stars=stars,
+        updatable=updatable,
+        drawable=drawable,
+        asteroids=asteroids,
+        shots=shots,
+        ship=ship,
+        high_score=high_score
+    )
+   
 
-    def points_per_asteroid(asteroid):
-        r = asteroid.radius
-        if r >= 60:
-            return 50
-        elif r >= 40:
-            return 25
-        else:
-            return 10
-    
-    
-    while 1 == 1:
+    running = True
+    while running:
         log_state()
         
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return
+        running, restart = handle_events(state.game_over)
+        if not running:
+            return
+        if restart:
+            main()
+            return
+
+        update_game(state, dt)
+        draw_game(state)
         
-            if game_over:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        return
-                    if event.key == pygame.K_r:
-                        main()
-                        return
-                
-        for star in stars:
-                star[1] += star[2]
-
-                if star[1] > SCREEN_HEIGHT:
-                    star[0] = random.randrange(0, SCREEN_WIDTH)
-                    star[1] = 0
-            
-        screen.fill("black")
-        
-        for x, y, speed in stars:
-            size = speed
-            screen.fill("white", (x, y, size, size))
-        
-        if not game_over:
-            updatable.update(dt)
-            
-            for asteroid in asteroids:
-                if asteroid.collides_with(ship):
-                    log_event("player_hit")
-                    print("Game over!")
-                    if score > high_score:
-                        high_score = score
-                        save_high_score(high_score)
-                    game_over = True
-
-            for asteroid in asteroids:
-                for shot in shots:
-                    if shot.collides_with(asteroid):
-                        log_event("asteroid_shot")
-                        shot.kill()
-                        score += points_per_asteroid(asteroid)
-                        asteroid.split()
-
-            for draw in drawable:
-                draw.draw(screen)
-        else:
-            # --- game over screen ---
-
-            game_over_text = font.render("GAME OVER", True, (255, 0, 0))
-            info_text      = font.render("R: restart   Q: quit", True, (255, 255, 255))
-            score_text     = font.render(f"Score: {score}", True, (255, 255, 255))
-            hs_text        = font.render(f"High:  {high_score}", True, (255, 255, 255))
-
-            screen.blit(game_over_text, (SCREEN_WIDTH // 2 - game_over_text.get_width() // 2,
-                                         SCREEN_HEIGHT // 2 - 60))
-            screen.blit(score_text,     (SCREEN_WIDTH // 2 - score_text.get_width() // 2,
-                                         SCREEN_HEIGHT // 2 - 20))
-            screen.blit(hs_text,        (SCREEN_WIDTH // 2 - hs_text.get_width() // 2,
-                                         SCREEN_HEIGHT // 2 + 20))
-            screen.blit(info_text,      (SCREEN_WIDTH // 2 - info_text.get_width() // 2,
-                                         SCREEN_HEIGHT // 2 + 60))
-        
-
-
-        if not game_over:
-            score_surf = font.render(f"Score: {score}", True, (255, 255, 255))
-            hs_surf    = font.render(f"High:  {high_score}", True, (255, 255, 255))
-
-            screen.blit(score_surf, (10,10))
-            screen.blit(hs_surf,    (10, 40))
-
-        pygame.display.flip()
         dt = clock.tick(60) / 1000
 
 
