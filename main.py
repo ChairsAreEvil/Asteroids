@@ -66,16 +66,29 @@ def update_game(state, dt):
     if not state.game_over:
         state.updatable.update(dt)
 
-        # player hit
-        for asteroid in state.asteroids:
-            if asteroid.collides_with(state.ship):
-                log_event("player_hit")
-                print("Game over!")
-                if state.score > state.high_score:
-                    state.high_score = state.score
-                    save_high_score(state.high_score)
-                state.game_over = True
-                break
+        #if player on respawn cooldown
+        if state.respawn_timer > 0:
+            state.respawn_timer -= dt
+        else:
+            # player can be hit
+            for asteroid in state.asteroids:
+                if asteroid.collides_with(state.ship):
+                    log_event("player_hit")
+                    state.lives -= 1
+                    print(f"Player hit! Lives remaining: {state.lives}")
+
+                    if state.lives <= 0:
+                        print("Game over!")
+                        if state.score > state.high_score:
+                            state.high_score = state.score
+                            save_high_score(state.high_score)
+                        state.game_over = True
+                    else:
+                        # respawn: reset ship, start timer
+                        state.respawn_timer = 2.0  # seconds of invulnerability
+                        state.ship.position.update(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+                        state.ship.velocity.update(0, 0)
+                    break
         
         # shots vs asteroids (only if still alive)
         if not state.game_over:
@@ -103,12 +116,18 @@ def draw_game(state):
     if not state.game_over:
         # normal world
         for draw in state.drawable:
+            if draw is state.ship and state.respawn_timer > 0:
+                t = pygame.time.get_ticks() / 100.0
+                if int(t) % 2 == 0:
+                    continue
             draw.draw(screen)
             
         score_surf = font.render(f"Score: {state.score}", True, (255, 255, 255))
         hs_surf    = font.render(f"High:  {state.high_score}", True, (255, 255, 255))
+        lives_surf = font.render(f"Lives: {state.lives}", True, (255, 255, 255))
         screen.blit(score_surf, (10,10))
         screen.blit(hs_surf,    (10, 40))
+        screen.blit(lives_surf, (10, 70))
     else:
         # game over screen
         game_over_text = font.render("GAME OVER", True, (255, 0, 0))
@@ -144,6 +163,9 @@ class GameState:
         self.score = 0
         self.high_score = high_score
         self.game_over = False
+
+        self.lives = 3
+        self.respawn_timer = 0.0
 
 # --- main entry point ---
 def main():
