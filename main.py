@@ -1,6 +1,7 @@
 import pygame
 import sys
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT
+import random
+from constants import *
 from logger import log_state, log_event
 from player import Player
 from asteroid import Asteroid
@@ -16,6 +17,14 @@ def main():
     pygame.init()
     clock = pygame.time.Clock()
     dt = 0
+    
+    stars = []
+    for _ in range(NUM_STARS):
+        x = random.randrange(0, SCREEN_WIDTH)
+        y = random.randrange(0, SCREEN_HEIGHT)
+        speed = random.choice([1, 1.5, 2, 2.5, 3])
+        stars.append([x, y, speed])
+    
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     
     updatable = pygame.sprite.Group()
@@ -39,7 +48,17 @@ def main():
             if event.type == pygame.QUIT:
                 return
         
+        for star in stars:
+            star[1] += star[2]
+
+            if star[1] > SCREEN_HEIGHT:
+                star[0] = random.randrange(0, SCREEN_WIDTH)
+                star[1] = 0
+        
         screen.fill("black")
+        for x, y, speed in stars:
+            size = speed
+            screen.fill("white", (x, y, size, size))
         updatable.update(dt)
         
         for asteroid in asteroids:
