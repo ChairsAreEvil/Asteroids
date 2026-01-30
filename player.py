@@ -9,6 +9,8 @@ class Player(CircleShape):
         self.rotation = 0
         self.cooldown = 0
         self.shield_active = False
+        self.tri_shot_active = False
+        self.tri_shot_ammo = 0
 
 # draws the player
     def triangle(self):
@@ -52,9 +54,21 @@ class Player(CircleShape):
     def shoot(self):
         if self.cooldown > 0:
             return
+        self.cooldown = PLAYER_SHOOT_COOLDOWN_SECONDS
+
+        base_dir = pygame.Vector2(0, 1).rotate(self.rotation)
+
+        if self.tri_shot_active:
+            angles = [-10, 0, 10]
+            for angle in angles:
+                direction = base_dir.rotate(angle)
+                shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
+                shot.velocity = direction * PLAYER_SHOOT_SPEED
+
+            self.tri_shot_ammo -= 1
+            if self.tri_shot_ammo <= 0:
+                self.tri_shot_active = False
         else:
-            self.cooldown = PLAYER_SHOOT_COOLDOWN_SECONDS
-        shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
-        direction = pygame.Vector2(0, 1).rotate(self.rotation)
-        shot.velocity = direction * PLAYER_SHOOT_SPEED
+            shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
+            shot.velocity = base_dir * PLAYER_SHOOT_SPEED
 

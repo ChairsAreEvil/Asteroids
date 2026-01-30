@@ -9,6 +9,7 @@ from shot import Shot
 from explosions import Explosion
 from shieldpowerup import ShieldPowerUp
 from clearpowerup import ClearAsteroidsPowerUp
+from trishot import TriShotPowerUp
 import os
 
 
@@ -84,6 +85,13 @@ def update_game(state, dt):
                 bomb.kill()
                 break
 
+        for tri_shot in list(state.tri_shots):
+            if tri_shot.collides_with(state.ship):
+                state.ship.tri_shot_active = True
+                state.ship.tri_shot_ammo += 30
+                tri_shot.kill()
+                break
+
         #if player on respawn cooldown
         if state.respawn_timer > 0:
             state.respawn_timer -= dt
@@ -148,9 +156,11 @@ def draw_game(state):
         score_surf = font.render(f"Score: {state.score}", True, (255, 255, 255))
         hs_surf    = font.render(f"High:  {state.high_score}", True, (255, 255, 255))
         lives_surf = font.render(f"Lives: {state.lives}", True, (255, 255, 255))
+        ammo_surf  = font.render(f"Tri-Shot Ammo: {state.ship.tri_shot_ammo}", True, (255, 255, 255))
         screen.blit(score_surf, (10,10))
         screen.blit(hs_surf,    (10, 40))
         screen.blit(lives_surf, (10, 70))
+        screen.blit(ammo_surf,  (10, 100))
     else:
         # game over screen
         game_over_text = font.render("GAME OVER", True, (255, 0, 0))
@@ -172,7 +182,7 @@ def draw_game(state):
 class GameState:
     def __init__(self, screen, font, stars,
                  updatable, drawable, asteroids, shots,
-                 ship, high_score, shields, clearers):
+                 ship, high_score, shields, clearers, tri_shots):
         self.screen = screen
         self.font = font
         self.stars = stars
@@ -184,6 +194,7 @@ class GameState:
         self.ship = ship
         self.shields = shields
         self.clearers = clearers
+        self.tri_shots = tri_shots
 
         self.score = 0
         self.high_score = high_score
@@ -217,6 +228,7 @@ def main():
     shots = pygame.sprite.Group()
     shields = pygame.sprite.Group()
     clearers = pygame.sprite.Group()
+    tri_shots = pygame.sprite.Group()
     #explosions = pygame.sprite.Group()
 
     Player.containers = (updatable, drawable)
@@ -226,8 +238,9 @@ def main():
     Explosion.containers = (updatable, drawable)
     ShieldPowerUp.containers = (shields, updatable, drawable)
     ClearAsteroidsPowerUp.containers = (clearers, updatable, drawable)
+    TriShotPowerUp.containers = (tri_shots, updatable, drawable)
 
-    field = AsteroidField(shields)
+    field = AsteroidField(shields, tri_shots)
     ship = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
 
     # temp shield test:
@@ -245,7 +258,8 @@ def main():
         ship=ship,
         high_score=high_score,
         shields=shields,
-        clearers=clearers
+        clearers=clearers,
+        tri_shots=tri_shots
     )
    
 

@@ -3,6 +3,7 @@ import random
 from asteroid import Asteroid
 from shieldpowerup import ShieldPowerUp
 from clearpowerup import ClearAsteroidsPowerUp
+from trishot import TriShotPowerUp
 from constants import *
 
 
@@ -30,10 +31,11 @@ class AsteroidField(pygame.sprite.Sprite):
         ],
     ]
 
-    def __init__(self, shields_group):
+    def __init__(self, shields_group, tri_shot_group):
         pygame.sprite.Sprite.__init__(self, self.containers)
         self.spawn_timer = 0.0
         self.shields_group = shields_group
+        self.tri_shot_group = tri_shot_group
 
     def spawn(self, radius, position, velocity):
         asteroid = Asteroid(position.x, position.y, radius)
@@ -49,6 +51,11 @@ class AsteroidField(pygame.sprite.Sprite):
         bomb = ClearAsteroidsPowerUp(position.x, position.y, radius)
         bomb.velocity = velocity * 0.7
 
+    def spawn_tri_shot(self, position, velocity):
+        radius = 15
+        tri_shot = TriShotPowerUp(position.x, position.y, radius)
+        tri_shot.velocity = velocity * 0.75
+
     def update(self, dt):
         self.spawn_timer += dt
         if self.spawn_timer > ASTEROID_SPAWN_RATE_SECONDS:
@@ -63,7 +70,9 @@ class AsteroidField(pygame.sprite.Sprite):
             kind = random.randint(1, ASTEROID_KINDS)
 
             r = random.random()
-            if r < CLEAR_SPAWN_CHANCE:
+            if r < TRI_SHOT_SPAWN_CHANCE and len(self.tri_shot_group) < 2:
+                self.spawn_tri_shot(position, velocity)
+            elif r < CLEAR_SPAWN_CHANCE:
                 self.spawn_clearer(position, velocity)
             elif r < SHIELD_SPAWN_CHANCE and len(self.shields_group) < 2:
                 self.spawn_shield(position, velocity)
