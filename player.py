@@ -23,7 +23,7 @@ class Player(CircleShape):
         pygame.draw.polygon(screen, "blue4", self.triangle())
         pygame.draw.polygon(screen, "white", self.triangle(), LINE_WIDTH)
         if self.shield_active:
-            pygame.draw.circle(screen, "blue4", self.position, self.radius + 8, LINE_WIDTH)
+            pygame.draw.circle(screen, "cadetblue1", self.position, self.radius + 12, LINE_WIDTH + 1)
 
     def rotate(self, dt):
         self.rotation += (PLAYER_TURN_SPEED * dt)

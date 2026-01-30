@@ -8,6 +8,7 @@ from asteroidfield import AsteroidField
 from shot import Shot
 from explosions import Explosion
 from shieldpowerup import ShieldPowerUp
+from clearpowerup import ClearAsteroidsPowerUp
 import os
 
 
@@ -71,6 +72,16 @@ def update_game(state, dt):
             if shield.collides_with(state.ship):
                 state.ship.shield_active = True
                 shield.kill()
+                break
+
+        for bomb in list(state.clearers):
+            if bomb.collides_with(state.ship):
+                log_event("clear_asteroids")
+                for asteroid in list(state.asteroids):
+                    state.score += points_per_asteroid(asteroid)
+                    asteroid.create_explosion(asteroid.position.x, asteroid.position.y, asteroid.radius, small=True)
+                    asteroid.kill()
+                bomb.kill()
                 break
 
         #if player on respawn cooldown
@@ -161,7 +172,7 @@ def draw_game(state):
 class GameState:
     def __init__(self, screen, font, stars,
                  updatable, drawable, asteroids, shots,
-                 ship, high_score, shields):
+                 ship, high_score, shields, clearers):
         self.screen = screen
         self.font = font
         self.stars = stars
@@ -172,6 +183,7 @@ class GameState:
         self.shots = shots
         self.ship = ship
         self.shields = shields
+        self.clearers = clearers
 
         self.score = 0
         self.high_score = high_score
@@ -204,6 +216,7 @@ def main():
     asteroids = pygame.sprite.Group()
     shots = pygame.sprite.Group()
     shields = pygame.sprite.Group()
+    clearers = pygame.sprite.Group()
     #explosions = pygame.sprite.Group()
 
     Player.containers = (updatable, drawable)
@@ -212,6 +225,7 @@ def main():
     Shot.containers = (shots, updatable, drawable)
     Explosion.containers = (updatable, drawable)
     ShieldPowerUp.containers = (shields, updatable, drawable)
+    ClearAsteroidsPowerUp.containers = (clearers, updatable, drawable)
 
     field = AsteroidField(shields)
     ship = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
@@ -230,7 +244,8 @@ def main():
         shots=shots,
         ship=ship,
         high_score=high_score,
-        shields=shields
+        shields=shields,
+        clearers=clearers
     )
    
 

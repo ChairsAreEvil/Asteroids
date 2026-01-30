@@ -9,8 +9,8 @@ class ShieldPowerUp(CircleShape):
         super().__init__(x, y, radius)
 
     def draw(self, screen):
-            pygame.draw.circle(screen, "blue", self.position, self.radius)
-            pygame.draw.circle(screen, "blue4", self.position, self.radius, LINE_WIDTH)
+            pygame.draw.circle(screen, "cadetblue1", self.position, self.radius)
+            pygame.draw.circle(screen, "cyan", self.position, self.radius, LINE_WIDTH + 2)
 
     def update(self, dt):
             self.position += (self.velocity * dt)

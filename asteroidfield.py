@@ -2,6 +2,7 @@ import pygame
 import random
 from asteroid import Asteroid
 from shieldpowerup import ShieldPowerUp
+from clearpowerup import ClearAsteroidsPowerUp
 from constants import *
 
 
@@ -43,6 +44,11 @@ class AsteroidField(pygame.sprite.Sprite):
         shield = ShieldPowerUp(position.x, position.y, radius)
         shield.velocity = velocity * 0.75
 
+    def spawn_clearer(self, position, velocity):
+        radius = 15
+        bomb = ClearAsteroidsPowerUp(position.x, position.y, radius)
+        bomb.velocity = velocity * 0.7
+
     def update(self, dt):
         self.spawn_timer += dt
         if self.spawn_timer > ASTEROID_SPAWN_RATE_SECONDS:
@@ -56,8 +62,10 @@ class AsteroidField(pygame.sprite.Sprite):
             position = edge[1](random.uniform(0, 1))
             kind = random.randint(1, ASTEROID_KINDS)
 
-            # decide wether to spawn shield instead of asteroid
-            if random.random() < SHIELD_SPAWN_CHANCE and len(self.shields_group) < 2:
+            r = random.random()
+            if r < CLEAR_SPAWN_CHANCE:
+                self.spawn_clearer(position, velocity)
+            elif r < SHIELD_SPAWN_CHANCE and len(self.shields_group) < 2:
                 self.spawn_shield(position, velocity)
             else:
                 self.spawn(ASTEROID_MIN_RADIUS * kind, position, velocity)
