@@ -7,6 +7,7 @@ from asteroid import Asteroid
 from asteroidfield import AsteroidField
 from shot import Shot
 from explosions import Explosion
+from shieldpowerup import ShieldPowerUp
 import os
 
 
@@ -66,6 +67,12 @@ def update_game(state, dt):
     if not state.game_over:
         state.updatable.update(dt)
 
+        for shield in list(state.shields):
+            if shield.collides_with(state.ship):
+                state.ship.shield_active = True
+                shield.kill()
+                break
+
         #if player on respawn cooldown
         if state.respawn_timer > 0:
             state.respawn_timer -= dt
@@ -73,21 +80,26 @@ def update_game(state, dt):
             # player can be hit
             for asteroid in state.asteroids:
                 if asteroid.collides_with(state.ship):
-                    log_event("player_hit")
-                    state.lives -= 1
-                    print(f"Player hit! Lives remaining: {state.lives}")
-
-                    if state.lives <= 0:
-                        print("Game over!")
-                        if state.score > state.high_score:
-                            state.high_score = state.score
-                            save_high_score(state.high_score)
-                        state.game_over = True
+                    if state.ship.shield_active:
+                        state.ship.shield_active = False
+                        log_event("shield_block")
+                        asteroid.split()
                     else:
-                        # respawn: reset ship, start timer
-                        state.respawn_timer = 2.0  # seconds of invulnerability
-                        state.ship.position.update(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-                        state.ship.velocity.update(0, 0)
+                        log_event("player_hit")
+                        state.lives -= 1
+                        print(f"Player hit! Lives remaining: {state.lives}")
+
+                        if state.lives <= 0:
+                            print("Game over!")
+                            if state.score > state.high_score:
+                                state.high_score = state.score
+                                save_high_score(state.high_score)
+                            state.game_over = True
+                        else:
+                            # respawn: reset ship, start timer
+                            state.respawn_timer = 2.0  # seconds of invulnerability
+                            state.ship.position.update(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+                            state.ship.velocity.update(0, 0)
                     break
         
         # shots vs asteroids (only if still alive)
@@ -149,7 +161,7 @@ def draw_game(state):
 class GameState:
     def __init__(self, screen, font, stars,
                  updatable, drawable, asteroids, shots,
-                 ship, high_score):
+                 ship, high_score, shields):
         self.screen = screen
         self.font = font
         self.stars = stars
@@ -159,6 +171,7 @@ class GameState:
         self.asteroids = asteroids
         self.shots = shots
         self.ship = ship
+        self.shields = shields
 
         self.score = 0
         self.high_score = high_score
@@ -190,6 +203,7 @@ def main():
     drawable = pygame.sprite.Group()
     asteroids = pygame.sprite.Group()
     shots = pygame.sprite.Group()
+    shields = pygame.sprite.Group()
     #explosions = pygame.sprite.Group()
 
     Player.containers = (updatable, drawable)
@@ -197,9 +211,14 @@ def main():
     AsteroidField.containers = (updatable,)
     Shot.containers = (shots, updatable, drawable)
     Explosion.containers = (updatable, drawable)
+    ShieldPowerUp.containers = (shields, updatable, drawable)
 
-    field = AsteroidField()
+    field = AsteroidField(shields)
     ship = Player(SCREEN_WIDTH/2, SCREEN_HEIGHT/2)
+
+    # temp shield test:
+    # test_shield = ShieldPowerUp(200, 200, 15)
+    # test_shield.velocity = pygame.Vector2(60, 30)
 
     state = GameState(
         screen=screen,
@@ -210,7 +229,8 @@ def main():
         asteroids=asteroids,
         shots=shots,
         ship=ship,
-        high_score=high_score
+        high_score=high_score,
+        shields=shields
     )
    
 
